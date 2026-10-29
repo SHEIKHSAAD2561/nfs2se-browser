@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NFS II SE in the Browser</title>
+  <meta name="description" content="Run your own copy of Need for Speed II: Special Edition (DOS) in the browser with js-dos.">
+  <link rel="stylesheet" href="https://v8.js-dos.com/latest/js-dos.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <h1>NFS II SE <span>in the browser</span></h1>
+    <p class="tag">Bring your own game files. Nothing is uploaded; everything runs locally in your browser.</p>
+  </header>
+
+  <main>
+    <section id="setup" class="panel">
+      <ol class="steps">
+        <li>
+          <h2>Load your game files</h2>
+          <p>Pick the installed DOS game folder, or a <code>.zip</code> of it.</p>
+          <div class="pickers">
+            <label class="btn">
+              Choose folder
+              <input id="pick-folder" type="file" webkitdirectory directory multiple hidden>
+            </label>
+            <label class="btn ghost">
+              Choose .zip
+              <input id="pick-zip" type="file" accept=".zip,application/zip" hidden>
+            </label>
+          </div>
+          <div id="drop" class="drop">…or drop a .zip here</div>
+          <p id="files-status" class="status"></p>
+        </li>
+
+        <li>
+          <h2>Game CD image <small>(optional)</small></h2>
+          <p>If the game asks for the CD, add the disc as <code>.iso</code> or <code>.cue</code> + <code>.bin</code>. It's mounted as drive D:.</p>
+          <label class="btn ghost">
+            Choose CD image
+            <input id="pick-cd" type="file" accept=".iso,.cue,.bin" multiple hidden>
+          </label>
+          <p id="cd-status" class="status"></p>
+        </li>
+
+        <li>
+          <h2>Launch settings</h2>
+          <div class="grid">
+            <label>Program to run
+              <select id="exe"></select>
+            </label>
+            <label>CPU cycles
+              <select id="cycles">
+                <option value="max">max (recommended)</option>
+                <option value="auto">auto</option>
+                <option value="fixed 30000">fixed 30000</option>
+                <option value="fixed 60000">fixed 60000</option>
+                <option value="fixed 100000">fixed 100000</option>
+              </select>
+            </label>
+            <label>Memory (MB)
+              <select id="memsize">
+                <option>16</option>
+                <option selected>32</option>
+                <option>64</option>
+              </select>
+            </label>
+            <label>Emulator
+              <select id="backend">
+                <option value="dosbox">DOSBox (faster)</option>
+                <option value="dosboxX">DOSBox-X (more compatible)</option>
+              </select>
+            </label>
+          </div>
+          <details>
+            <summary>Edit dosbox.conf by hand</summary>
+            <textarea id="conf" spellcheck="false" rows="16"></textarea>
+            <p class="hint">Changes to the dropdowns above regenerate this text.</p>
+          </details>
+        </li>
+      </ol>
+
+      <button id="launch" class="launch" disabled>Start game</button>
+    </section>
+
+    <section id="player" class="player" hidden>
+      <div class="bar">
+        <span>Running: <strong id="running"></strong></span>
+        <button id="stop" class="btn ghost">Stop</button>
+      </div>
+      <div id="dos"></div>
+    </section>
+  </main>
+
+  <footer>
+    Need for Speed is a trademark of Electronic Arts. This project ships no game data; use a copy you own.
+    Emulation by <a href="https://js-dos.com" rel="noopener">js-dos</a>.
+  </footer>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://v8.js-dos.com/latest/js-dos.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

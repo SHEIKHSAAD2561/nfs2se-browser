@@ -1,0 +1,9 @@
+# Never commit game data
+*.iso
+*.bin
+*.cue
+*.zip
+*.jsdos
+*.EXE
+*.exe
+game/
