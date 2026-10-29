@@ -11,6 +11,8 @@ A small web page that runs **Need for Speed II: Special Edition (DOS version)** 
 3. If the game asks for the CD, also add the disc image (`.iso`, or `.cue` + `.bin`). It's mounted as `D:`.
 4. Check that **Program to run** shows the game's exe (usually `NFS2SE.EXE`), then press **Start game**.
 
+With **Keep the files in this browser** ticked, the files are copied once into the browser's private storage (OPFS), so next time the page loads them by itself. **Forget saved files** removes them.
+
 ### Tips
 
 - **Folder names must be DOS-friendly**: 8 characters or fewer, no spaces (e.g. `NFSSE`). The page warns you if not.
@@ -36,6 +38,12 @@ Repo **Settings → Pages → Build and deployment → Deploy from a branch → 
 
 - Your files are read with the File API (folder picker) or [JSZip](https://stuk.github.io/jszip/) (zip).
 - They're passed to js-dos as an in-memory file system (`initFs`), along with a generated `dosbox.conf` that mounts them as `C:` and launches the selected program.
+
+### Compared with the Cricket 07 port
+
+[cricket07-browser](https://github.com/Dhaiwat10/cricket07-browser) uses *static recompilation*: the Windows game's machine code is translated to C and compiled to WebAssembly, and Direct3D, DirectSound and DirectInput are rebuilt on WebGPU and Web Audio. That gives near-native speed but is a large, game-specific engineering project.
+
+This project emulates a DOS PC instead, so the original game runs unmodified. It borrows the "pick your folder once, keep it in browser storage" design from that repo.
 
 ## Legal
 

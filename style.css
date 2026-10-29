@@ -78,6 +78,9 @@ code { background: #0b0d12; padding: 1px 5px; border-radius: 4px; font-size: 0.9
 }
 .drop.over { border-color: var(--accent); color: var(--accent); }
 
+.check { display: flex; gap: 8px; align-items: center; margin-top: 10px; color: var(--muted); font-size: 14px; }
+.link { background: none; border: 0; padding: 0; margin-top: 6px; color: var(--muted); text-decoration: underline; cursor: pointer; font: inherit; font-size: 13px; }
+
 .status { margin: 8px 0 0 !important; font-size: 14px; }
 .status.ok { color: var(--ok); }
 .status.warn { color: var(--warn); }

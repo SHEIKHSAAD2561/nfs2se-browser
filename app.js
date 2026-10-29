@@ -29,6 +29,7 @@
 
   async function loadFolder(fileList) {
     gameFiles = new Map();
+    fromStore = false;
     for (const f of fileList) {
       gameFiles.set(clean(f.webkitRelativePath || f.name), f);
     }
@@ -40,6 +41,7 @@
     try {
       const zip = await JSZip.loadAsync(file);
       gameFiles = new Map();
+      fromStore = false;
       zip.forEach((path, entry) => {
         if (!entry.dir) gameFiles.set(clean(path), entry);
       });
@@ -105,6 +107,11 @@
   function loadCd(fileList) {
     cdFiles = new Map();
     for (const f of fileList) cdFiles.set("cd/" + clean(f.name), f);
+    fromStore = false;
+    showCdStatus();
+  }
+
+  function showCdStatus() {
     const names = [...cdFiles.keys()];
     const image = cdImagePath();
     $("cd-status").textContent = image
@@ -117,6 +124,113 @@
   function cdImagePath() {
     const names = [...cdFiles.keys()];
     return names.find((n) => /\.cue$/i.test(n)) || names.find((n) => /\.iso$/i.test(n)) || null;
+  }
+
+  // ---------- saved files (browser private storage, OPFS) ----------
+  // Same idea as the Cricket 07 port: copy the game folder in once, then load it from storage.
+
+  const STORE = "nfs2se";
+  const SETTINGS_KEY = "nfs2se-settings";
+  const SETTING_IDS = ["exe", "cycles", "memsize", "backend"];
+  let fromStore = false;
+
+  const storeSupported = !!(navigator.storage && navigator.storage.getDirectory);
+
+  async function storeDir(create) {
+    const root = await navigator.storage.getDirectory();
+    return root.getDirectoryHandle(STORE, { create });
+  }
+
+  async function writeFile(dir, path, blob) {
+    const parts = path.split("/");
+    const name = parts.pop();
+    for (const p of parts) dir = await dir.getDirectoryHandle(p, { create: true });
+    const handle = await dir.getFileHandle(name, { create: true });
+    const w = await handle.createWritable();
+    await w.write(blob instanceof Blob ? blob : await blob.async("blob"));
+    await w.close();
+  }
+
+  async function saveToStore(onProgress) {
+    await clearStore();
+    const dir = await storeDir(true);
+    const all = [
+      ...[...gameFiles].map(([p, f]) => ["game/" + p, f]),
+      ...cdFiles,
+    ];
+    let i = 0;
+    for (const [path, f] of all) {
+      await writeFile(dir, path, f);
+      onProgress(++i, all.length);
+    }
+    try { await navigator.storage.persist(); } catch (_) {}
+  }
+
+  async function walk(dir, prefix, out) {
+    for await (const [name, handle] of dir.entries()) {
+      const path = prefix ? prefix + "/" + name : name;
+      if (handle.kind === "directory") await walk(handle, path, out);
+      else out.set(path, await handle.getFile());
+    }
+    return out;
+  }
+
+  async function loadFromStore() {
+    let dir;
+    try { dir = await storeDir(false); } catch (_) { return false; }
+    const all = await walk(dir, "", new Map());
+    const game = new Map(), cd = new Map();
+    for (const [p, f] of all) {
+      if (p.startsWith("game/")) game.set(p.slice(5), f);
+      else if (p.startsWith("cd/")) cd.set(p, f);
+    }
+    if (!game.size) return false;
+    gameFiles = game;
+    cdFiles = cd;
+    fromStore = true;
+    return true;
+  }
+
+  async function clearStore() {
+    try {
+      const root = await navigator.storage.getDirectory();
+      await root.removeEntry(STORE, { recursive: true });
+    } catch (_) { /* nothing saved */ }
+  }
+
+  function saveSettings() {
+    try {
+      const s = {};
+      for (const id of SETTING_IDS) s[id] = $(id).value;
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
+    } catch (_) {}
+  }
+
+  function restoreSettings() {
+    try {
+      const s = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}");
+      for (const id of SETTING_IDS) {
+        if (s[id] && [...$(id).options].some((o) => o.value === s[id])) $(id).value = s[id];
+      }
+    } catch (_) {}
+  }
+
+  async function init() {
+    if (!storeSupported) {
+      $("remember").checked = false;
+      $("remember").disabled = true;
+      $("remember").parentElement.title = "This browser doesn't support saving files.";
+    } else if (await loadFromStore()) {
+      afterGameLoad();
+      if (cdFiles.size) showCdStatus();
+      restoreSettings();
+      rebuildConf();
+      setFilesStatus($("files-status").textContent + " (loaded from this browser)", $("files-status").className.split(" ")[1]);
+      $("forget").hidden = false;
+      return;
+    }
+    restoreSettings();
+    rebuildConf();
   }
 
   // ---------- dosbox.conf ----------
@@ -181,6 +295,16 @@
     btn.disabled = true;
     btn.textContent = "Preparing files…";
     try {
+      if (storeSupported && $("remember").checked && !fromStore) {
+        try {
+          await saveToStore((i, n) => { btn.textContent = `Saving files ${i}/${n}…`; });
+          fromStore = true;
+        } catch (e) {
+          setFilesStatus("Couldn't save files in this browser (" + e.message + "); running without saving.", "warn");
+        }
+      }
+      saveSettings();
+      btn.textContent = "Preparing files…";
       const initFs = [];
       for (const [path, f] of [...gameFiles, ...cdFiles]) {
         initFs.push({ path, contents: await toBytes(f) });
@@ -226,8 +350,13 @@
   $("pick-zip").addEventListener("change", (e) => e.target.files[0] && loadZip(e.target.files[0]));
   $("pick-cd").addEventListener("change", (e) => e.target.files.length && loadCd(e.target.files));
   for (const id of ["exe", "cycles", "memsize"]) $(id).addEventListener("change", rebuildConf);
+  for (const id of SETTING_IDS) $(id).addEventListener("change", saveSettings);
   $("launch").addEventListener("click", launch);
   $("stop").addEventListener("click", stop);
+  $("forget").addEventListener("click", async () => {
+    await clearStore();
+    location.reload();
+  });
 
   const drop = $("drop");
   drop.addEventListener("dragover", (e) => { e.preventDefault(); drop.classList.add("over"); });
@@ -240,5 +369,5 @@
     else setFilesStatus("Drop a .zip file (or use Choose folder).", "err");
   });
 
-  rebuildConf();
+  init();
 })();
